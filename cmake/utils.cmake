@@ -489,13 +489,19 @@ function (define_extension_target MOD_NAME)
     hipify_sources_target(ARG_SOURCES ${MOD_NAME} "${ARG_SOURCES}")
   endif()
 
+  run_python(IS_FREETHREADED_PYTHON
+    "import sysconfig; print(f'{bool(sysconfig.get_config_var(\"Py_GIL_DISABLED\"))}')"
+    "Failed to determine whether interpreter is free-threaded")
+
   if (ARG_WITH_SOABI)
     set(SOABI_KEYWORD WITH_SOABI)
   else()
     set(SOABI_KEYWORD "")
   endif()
 
-  if (ARG_USE_SABI)
+  # Free-threaded Python doesn't yet support the stable ABI (see PEP 803/809),
+  # so avoid using the stable ABI under free-threading only.
+  if (ARG_USE_SABI AND NOT IS_FREETHREADED_PYTHON)
     Python_add_library(${MOD_NAME} MODULE USE_SABI ${ARG_USE_SABI} ${SOABI_KEYWORD} "${ARG_SOURCES}")
   else()
     Python_add_library(${MOD_NAME} MODULE ${SOABI_KEYWORD} "${ARG_SOURCES}")

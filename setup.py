@@ -86,9 +86,13 @@ def is_url_available(url: str) -> bool:
     return status == 200
 
 
+def is_freethreaded():
+    return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
 class CMakeExtension(Extension):
     def __init__(self, name: str, cmake_lists_dir: str = ".", **kwa) -> None:
-        super().__init__(name, sources=[], py_limited_api=True, **kwa)
+        super().__init__(name, sources=[], py_limited_api=not is_freethreaded(), **kwa)
         self.cmake_lists_dir = os.path.abspath(cmake_lists_dir)
 
 
