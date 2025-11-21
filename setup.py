@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from shutil import which
 
@@ -88,6 +89,14 @@ def is_url_available(url: str) -> bool:
 
 def is_freethreaded():
     return bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+
+
+def get_soabi_string():
+    # Uses the stable API (abi3) by default, except for free-threading which
+    # doesn't yet support that.
+    if is_freethreaded():
+        return sysconfig.get_config_var('SOABI')
+    return 'abi3'
 
 
 class CMakeExtension(Extension):
@@ -353,16 +362,17 @@ class precompiled_wheel_utils:
 
             package_data_patch = {}
 
+            soabi = get_soabi_string()
             with zipfile.ZipFile(wheel_path) as wheel:
                 files_to_copy = [
-                    "vllm/_C.abi3.so",
-                    "vllm/_moe_C.abi3.so",
-                    "vllm/_flashmla_C.abi3.so",
-                    "vllm/_flashmla_extension_C.abi3.so",
-                    "vllm/_sparse_flashmla_C.abi3.so",
-                    "vllm/vllm_flash_attn/_vllm_fa2_C.abi3.so",
-                    "vllm/vllm_flash_attn/_vllm_fa3_C.abi3.so",
-                    "vllm/cumem_allocator.abi3.so",
+                    f"vllm/_C.{soabi}.so",
+                    f"vllm/_moe_C.{soabi}.so",
+                    f"vllm/_flashmla_C.{soabi}.so",
+                    f"vllm/_flashmla_extension_C.{soabi}.so",
+                    f"vllm/_sparse_flashmla_C.{soabi}.so",
+                    f"vllm/vllm_flash_attn/_vllm_fa2_C.{soabi}.so",
+                    f"vllm/vllm_flash_attn/_vllm_fa3_C.{soabi}.so",
+                    f"vllm/cumem_allocator.{soabi}.so",
                 ]
 
                 compiled_regex = re.compile(
@@ -698,6 +708,7 @@ if envs.VLLM_USE_PRECOMPILED:
         else:
             raise ValueError(f"Unsupported architecture: {arch}")
         base_commit = precompiled_wheel_utils.get_base_commit_in_main_branch()
+        # Note: needs updating for free-threading once nightly wheels are built
         wheel_url = f"https://wheels.vllm.ai/{base_commit}/vllm-1.0.0.dev-cp38-abi3-{wheel_tag}.whl"
         nightly_wheel_url = (
             f"https://wheels.vllm.ai/nightly/vllm-1.0.0.dev-cp38-abi3-{wheel_tag}.whl"
